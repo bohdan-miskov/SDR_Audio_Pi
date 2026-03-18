@@ -1,0 +1,8 @@
+PyQt6
+PyQt5
+numpy
+pyqtgraph
+pyadi-iio
+matplotlib
+scipy
+# RPi.GPIO
