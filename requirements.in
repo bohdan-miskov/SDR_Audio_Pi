@@ -1,7 +1,8 @@
-PyQt5
+PyQt6
 numpy
 pyqtgraph
 pyadi-iio
 matplotlib
 scipy
+sqlalchemy
 # RPi.GPIO
