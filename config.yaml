@@ -1,0 +1,22 @@
+device:
+  rate: 16000
+  chunk_size: 16000
+  channels: 1
+
+detection:
+  threshold_confidence: 70.0
+  threshold_volume: 0.05
+  goertzel_frequencies: [150, 300, 450, 600]
+
+paths:
+  model_keras: "src/models/conv.keras"
+  model_pickle: "src/models/conv.p"
+  log_dir: "src/data/recorded_alerts"
+
+logging:
+  history_seconds: 3
+  post_record_seconds: 7
+
+gui:
+  refresh_rate_ms: 50
+  theme: "dark"
