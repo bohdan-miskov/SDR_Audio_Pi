@@ -1,0 +1,7 @@
+numpy
+PyQt6
+pyqtgraph
+PyYAML
+librosa
+tensorflow-cpu
+soundfile
