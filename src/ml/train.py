@@ -86,15 +86,14 @@ def build_rand_feat(df, classes, class_dist):
                 continue
 
             rand_index = np.random.randint(0, wav.shape[0] - config.step)
-            sample = wav[rand_index:rand_index + config.step]
+            sample = wav[rand_index:rand_index + config.step].astype(
+                np.float32)
+
+            if np.random.rand() > 0.5:
+                noise_amp = 0.05 * np.random.uniform(0, 1) * np.amax(np.abs(sample) + 1e-6)
+                sample = sample + noise_amp * np.random.normal(size=sample.shape[0])
 
             X_sample = mfcc(sample, rate, numcep=config.nfeat, nfilt=config.nfilt, nfft=config.nfft)
-
-            config.min = min(np.amin(X_sample), config.min)
-            config.max = max(np.amax(X_sample), config.max)
-
-            X.append(X_sample)
-            y.append(classes.index(rand_class))
 
         except Exception as e:
             continue

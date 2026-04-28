@@ -4,7 +4,7 @@ from collections import deque
 from datetime import datetime
 from pathlib import Path
 
-
+#hello
 class SmartAudioLogger:
     def __init__(self, save_dir="src/data/recorded_alerts", rate=16000, history_seconds=3, max_storage_mb=500):
         self.save_dir = Path(save_dir)

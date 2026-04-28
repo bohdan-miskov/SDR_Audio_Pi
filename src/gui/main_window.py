@@ -1,100 +1,86 @@
-"""
-SDRInterface — головне вікно SDR-монітора.
-Координує ControlPanel та ChartPanel, підписується на таймер оновлення.
-"""
-from PyQt5.QtWidgets import QMainWindow, QWidget, QHBoxLayout
-from PyQt5.QtCore import QTimer
-
-from gui.panels.control_panel import ControlPanel
-from gui.panels.chart_panel import ChartPanel
-from gui.windows.histogram_window import HistogramWindow
-
 import numpy as np
+import pyqtgraph as pg
+from PyQt6.QtWidgets import QMainWindow, QVBoxLayout, QWidget, QPushButton, QLabel
+from PyQt6.QtCore import Qt
 
 
-class SDRInterface(QMainWindow):
-    """
-    Головне вікно програми.
-    Делегує всю логіку контролеру (ctrl), залишаючи собі лише View.
-    """
-
-    TIMER_MS: int = 50  # Інтервал оновлення графіків
-
-    def __init__(self, ctrl):
+class RadarWindow(QMainWindow):
+    def __init__(self, config):
         super().__init__()
-        self._ctrl = ctrl
-        self._hist_window: HistogramWindow | None = None
+        self.config = config
+        self.setWindowTitle("Drone Detection Radar")
+        self.resize(1000, 700)
+        self.setStyleSheet("background-color: #050505; color: #00FF00;")
 
-        self.setWindowTitle(f"SDR Monitor [Mode: {self._ctrl.radio.mode}]")
-        self.resize(1200, 800)
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+        self.layout = QVBoxLayout(self.central_widget)
 
-        # Центральний віджет
-        central = QWidget()
-        self.setCentralWidget(central)
-        layout = QHBoxLayout(central)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        self.status_label = QLabel("СТАТУС: МОНІТОРИНГ")
+        self.status_label.setStyleSheet("font-size: 20px; font-weight: bold; padding: 10px;")
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.layout.addWidget(self.status_label)
 
-        # Панелі
-        self._ctrl_panel = ControlPanel(ctrl=self._ctrl, parent=self)
-        self._chart_panel = ChartPanel(ctrl=self._ctrl, parent=self)
+        self.graph_widget = pg.PlotWidget()
+        self.graph_widget.setBackground('#050505')
+        self.graph_widget.setXRange(0, 2000)
+        self.graph_widget.setYRange(0, 1.0)
+        self.layout.addWidget(self.graph_widget)
 
-        layout.addWidget(self._ctrl_panel)
-        layout.addWidget(self._chart_panel)
+        self.curve = self.graph_widget.plot(
+            pen=pg.mkPen('#00FF00', width=1.5),
+            skipFiniteCheck=True,
+            autoDownsample=True
+        )
 
-        # Таймер
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self._ctrl.update_tick)
-        self._timer.start(self.TIMER_MS)
+        self.goertzel_lines = {}
+        for freq in self.config['detection']['goertzel_frequencies']:
+            v_line = pg.InfiniteLine(pos=freq, angle=90, pen=pg.mkPen('#333333', width=1))
+            self.graph_widget.addItem(v_line)
+            self.goertzel_lines[freq] = v_line
 
-    # ── Proxy properties (для зворотної сумісності з MainDispatcher) ──────
+        self.rec_button = QPushButton("ЗАПИС (REC)")
+        self.rec_button.setStyleSheet(
+            "background-color: #111; color: #FF3333; font-weight: bold; padding: 15px; border: 1px solid #333;")
+        self.layout.addWidget(self.rec_button)
 
-    @property
-    def block_freq_update(self) -> bool:
-        return self._ctrl_panel.block_freq_update
+        self.chunk_size = self.config['device']['chunk_size']
+        self.rate = self.config['device']['rate']
+        self.window_func = np.hanning(self.chunk_size)
+        self.freq_axis = np.fft.rfftfreq(self.chunk_size, 1 / self.rate)
 
-    @block_freq_update.setter
-    def block_freq_update(self, value: bool) -> None:
-        self._ctrl_panel.block_freq_update = value
-
-    @property
-    def f_spin(self):
-        """Прямий доступ до спінбоксу частоти (використовується в MainDispatcher)."""
-        return self._ctrl_panel.f_spin
-
-    @property
-    def btn_scan(self):
-        """Прямий доступ до кнопки SCAN (використовується в MainDispatcher)."""
-        return self._ctrl_panel.btn_scan
-
-    # ── Public API ────────────────────────────────────────────────────────
-
-    def log(self, text: str, color: str = "white") -> None:
-        """Додає рядок у консольний лог."""
-        self._ctrl_panel.log(text, color)
-
-    def open_histogram(self) -> None:
-        """Відкриває вікно гістограми (якщо ще не відкрито)."""
-        if self._hist_window is None:
-            self._hist_window = HistogramWindow(self)
-        self._hist_window.show()
-
-    def update_graphs(self, freqs: np.ndarray, psd: np.ndarray) -> None:
-        """Оновлює спектр та водоспад, синхронізує спінбокс."""
-        self._chart_panel.update(freqs, psd, self._ctrl.dsp.mask_enabled)
-
-        # Синхронізуємо відображення поточної частоти
-        if not self.f_spin.hasFocus() and not self.block_freq_update:
-            current_mhz = self._ctrl.radio.current_freq / 1e6
-            if abs(self.f_spin.value() - current_mhz) > 0.001:
-                self.f_spin.blockSignals(True)
-                self.f_spin.setValue(current_mhz)
-                self.f_spin.blockSignals(False)
-
-    def update_histogram_window(self) -> None:
-        """Оновлює гістограму (якщо вікно відкрите)."""
-        if self._hist_window is None or not self._hist_window.isVisible():
+    def update_plot(self, audio_data):
+        if len(audio_data) != self.chunk_size:
             return
-        keys, values, channel_mode = self._ctrl.histo.get_data()
-        bar_width = self._ctrl.histo.get_band_width()
-        self._hist_window.update_data(keys, values, bar_width, channel_mode)
+
+        windowed = audio_data * self.window_func
+        spectrum = np.abs(np.fft.rfft(windowed))
+
+        spectrum += 1e-6
+        np.log10(spectrum, out=spectrum)
+        spectrum *= 20.0
+
+        spectrum += 60.0
+        spectrum /= 60.0
+
+        self.curve.setData(self.freq_axis, spectrum)
+
+    def update_goertzel_status(self, freq_results):
+        for freq, snr in freq_results.items():
+            line = self.goertzel_lines.get(freq)
+            if line:
+                if snr > 8.0:
+                    line.setPen(pg.mkPen('#FF0000', width=3))
+                elif snr > 3.0:
+                    line.setPen(pg.mkPen('#FFFF00', width=2))
+                else:
+                    line.setPen(pg.mkPen('#333333', width=1))
+
+    def update_detection(self, is_drone, confidence):
+        if is_drone:
+            self.status_label.setText(f"ВИЯВЛЕНО ДРОН ({confidence:.1f}%)")
+            self.status_label.setStyleSheet("color: #FF3333; font-size: 22px; font-weight: bold; background: #200;")
+        else:
+            self.status_label.setText("СТАТУС: МОНІТОРИНГ")
+            self.status_label.setStyleSheet(
+                "color: #00FF00; font-size: 20px; font-weight: bold; background: transparent;")
