@@ -1,0 +1,7 @@
+-c requirements.txt
+
+deptry
+black
+ruff
+mypy
+pre-commit
