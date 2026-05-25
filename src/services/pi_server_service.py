@@ -1,17 +1,17 @@
 import json
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, Optional
 
-from PyQt6.QtCore import QObject, pyqtSlot, QByteArray
-from PyQt6.QtNetwork import QTcpServer, QTcpSocket, QHostAddress
+from PyQt6.QtCore import QObject, pyqtSlot
+from PyQt6.QtNetwork import QHostAddress, QTcpServer, QTcpSocket
 
-from src.services.database_service import DatabaseService
+from src.models.detection_background import DetectionBackground
 from src.models.detection_event import DetectionEvent
 from src.models.detection_object import DetectionObject
-from src.models.object_class import ObjectClass
 from src.models.gps_data import GPSData
-from src.models.detection_background import DetectionBackground
+from src.models.object_class import ObjectClass
 from src.models.service_response import ServiceResponse, StatusCode
+from src.services.database_service import DatabaseService
 
 
 class PiServerService(QObject):
@@ -60,17 +60,23 @@ class PiServerService(QObject):
         Обробка нового підключення.
         Стратегія: Одночасно лише один клієнт. Новий клієнт 'вибиває' старого.
         """
+        if self.server is None:
+            return
+
         if self.client_socket:
-            print(
-                f"[PiProxy] Closing old connection from {self.client_socket.peerAddress().toString()}"
-            )
+            peer_address = self.client_socket.peerAddress()
+            addr_str = peer_address.toString() if peer_address else "Unknown"
+            print(f"[PiProxy] Closing old connection from {addr_str}")
             self.client_socket.close()
             self.client_socket.deleteLater()
 
         self.client_socket = self.server.nextPendingConnection()
-        print(
-            f"[PiProxy] Client connected: {self.client_socket.peerAddress().toString()}"
-        )
+        if self.client_socket is None:
+            return
+
+        peer_address = self.client_socket.peerAddress()
+        addr_str = peer_address.toString() if peer_address else "Unknown"
+        print(f"[PiProxy] Client connected: {addr_str}")
 
         self.client_socket.readyRead.connect(self._read_data)
         self.client_socket.disconnected.connect(self._handle_disconnected)
@@ -88,7 +94,7 @@ class PiServerService(QObject):
         while self.client_socket.canReadLine():
             line = self.client_socket.readLine().trimmed()
             try:
-                json_str = bytes(line).decode("utf-8")
+                json_str = line.data().decode("utf-8")
                 if not json_str:
                     continue
 
@@ -269,7 +275,7 @@ class PiServerService(QObject):
             }
             try:
                 msg = (json.dumps(payload) + "\n").encode("utf-8")
-                self.client_socket.write(QByteArray(msg))
+                self.client_socket.write(msg)
                 self.client_socket.flush()
             except Exception as e:
                 print(f"[PiProxy] Send Error: {e}")
@@ -279,7 +285,7 @@ class PiServerService(QObject):
         self.send_packet("detection", event.to_dict())
 
     def send_detection_background(self, back: DetectionBackground) -> None:
-        print(f"[PiProxy] Sending Detection background")
+        print("[PiProxy] Sending Detection background")
         self.send_packet("detection_background", back.to_dict())
 
     def send_gps_data(self, gps_data: GPSData) -> None:

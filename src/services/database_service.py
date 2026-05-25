@@ -1,31 +1,32 @@
 import math
-from typing import List, Any, Optional, Callable
+from typing import Any, Callable, List, Optional
 
-from PyQt6.QtCore import QObject, pyqtSignal, QRunnable, QThreadPool, pyqtSlot
+from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal, pyqtSlot
 from sqlalchemy import (
-    create_engine,
-    Column,
+    JSON,
+    Boolean,
+    ForeignKey,
     Integer,
     String,
-    Boolean,
-    JSON,
-    ForeignKey,
+    create_engine,
     func,
 )
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import (
-    sessionmaker,
-    declarative_base,
-    relationship,
-    joinedload,
-    Session,
-)
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.event import listen
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import (
+    Mapped,
+    Session,
+    declarative_base,
+    joinedload,
+    mapped_column,
+    relationship,
+    sessionmaker,
+)
 
 from src.models.detection_object import DetectionObject
 from src.models.object_class import ObjectClass
-from src.models.service_response import ServiceResponse, StatusCode, DbOperation
+from src.models.service_response import DbOperation, ServiceResponse, StatusCode
 
 DB_CONNECTION_STRING: str = "sqlite:///./sdr_pi.db"
 
@@ -34,21 +35,21 @@ Base: Any = declarative_base()
 
 class ObjectClassEntity(Base):
     __tablename__ = "object_classes"
-    id: int = Column(Integer, primary_key=True, autoincrement=True)
-    name: str = Column(String, unique=True, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     signatures = relationship("Signature", back_populates="object_class_rel")
 
 
 class Signature(Base):
     __tablename__ = "signatures"
-    id: int = Column(Integer, primary_key=True, autoincrement=True)
-    name: str = Column(String, nullable=False)
-    class_id: int = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    class_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("object_classes.id"), nullable=False, index=True
     )
-    is_dangerous: bool = Column(Boolean, default=False)
-    rf_params: Optional[List[str]] = Column(JSON, nullable=True)
-    sound_params: Optional[List[float]] = Column(JSON, nullable=True)
+    is_dangerous: Mapped[bool] = mapped_column(Boolean, default=False)
+    rf_params: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
+    sound_params: Mapped[Optional[List[int]]] = mapped_column(JSON, nullable=True)
     object_class_rel = relationship("ObjectClassEntity", back_populates="signatures")
 
 
@@ -82,7 +83,7 @@ class DatabaseService(QObject):
         listen(self.engine, "connect", self._enable_wal)
         Base.metadata.create_all(self.engine)
         self.Session: sessionmaker[Session] = sessionmaker(bind=self.engine)
-        print(f"[DB] Service started. Mode: WAL enabled.")
+        print("[DB] Service started. Mode: WAL enabled.")
 
     @staticmethod
     def _enable_wal(dbapi_connection, connection_record):
@@ -292,8 +293,8 @@ class DatabaseService(QObject):
                 class_id=new_sig.class_id,
                 object_class=target_class_name,
                 is_dangerous=new_sig.is_dangerous,
-                rf_params_hz=new_sig.rf_params,
-                sound_params_hz=new_sig.sound_params,
+                rf_params_hz=new_sig.rf_params or [],
+                sound_params_hz=new_sig.sound_params or [],
             )
 
             resp.status = StatusCode.CREATED
