@@ -16,7 +16,6 @@ click==8.3.3
     #   deptry
 colorama==0.4.6
     # via
-    #   -c requirements.txt
     #   click
     #   deptry
 deptry==0.25.1
@@ -41,7 +40,6 @@ nodeenv==1.10.0
     # via pre-commit
 packaging==26.2
     # via
-    #   -c requirements.txt
     #   black
     #   deptry
     #   requirements-parser
