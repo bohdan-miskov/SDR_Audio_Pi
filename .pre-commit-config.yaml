@@ -1,0 +1,10 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.3.5
+    hooks:
+      - id: ruff
+        name: Ruff (Тільки критичні помилки)
+        args:
+          - "--fix"
+          - "--select=E9,F"
+          - "--output-format=full"
