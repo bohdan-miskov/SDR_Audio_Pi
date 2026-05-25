@@ -4,52 +4,16 @@
 #
 #    pip-compile requirements.in
 #
-colorama==0.4.6
-    # via pyqtgraph
-contourpy==1.3.3
-    # via matplotlib
-cycler==0.12.1
-    # via matplotlib
-fonttools==4.62.1
-    # via matplotlib
 greenlet==3.5.0
     # via sqlalchemy
-kiwisolver==1.5.0
-    # via matplotlib
-matplotlib==3.10.9
-    # via -r requirements.in
 numpy==2.4.4
-    # via
-    #   -r requirements.in
-    #   contourpy
-    #   matplotlib
-    #   pyadi-iio
-    #   pyqtgraph
-    #   scipy
-packaging==26.2
-    # via matplotlib
-pillow==12.2.0
-    # via matplotlib
-pyadi-iio==0.0.20
     # via -r requirements.in
-pylibiio==0.25
-    # via pyadi-iio
-pyparsing==3.3.2
-    # via matplotlib
 pyqt6==6.11.0
     # via -r requirements.in
 pyqt6-qt6==6.11.0
     # via pyqt6
 pyqt6-sip==13.11.1
     # via pyqt6
-pyqtgraph==0.14.0
-    # via -r requirements.in
-python-dateutil==2.9.0.post0
-    # via matplotlib
-scipy==1.17.1
-    # via -r requirements.in
-six==1.17.0
-    # via python-dateutil
 sqlalchemy==2.0.49
     # via -r requirements.in
 typing-extensions==4.15.0
