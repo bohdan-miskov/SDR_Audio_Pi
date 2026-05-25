@@ -1,6 +1,6 @@
 from dataclasses import dataclass
+from enum import Enum, IntEnum
 from typing import Any, Optional, Union
-from enum import IntEnum, Enum
 
 
 class DbOperation(str, Enum):

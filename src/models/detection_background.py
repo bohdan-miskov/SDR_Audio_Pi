@@ -1,8 +1,8 @@
-from dataclasses import dataclass, asdict
 import uuid
+from dataclasses import dataclass
 from datetime import datetime
+
 import numpy as np
-from typing import List, Union
 
 
 @dataclass

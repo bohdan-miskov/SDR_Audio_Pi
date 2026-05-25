@@ -1,17 +1,17 @@
 import json
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, Optional
 
-from PyQt6.QtCore import QObject, pyqtSlot, QByteArray
-from PyQt6.QtNetwork import QTcpServer, QTcpSocket, QHostAddress
+from PyQt6.QtCore import QByteArray, QObject, pyqtSlot
+from PyQt6.QtNetwork import QHostAddress, QTcpServer, QTcpSocket
 
-from src.services.database_service import DatabaseService
+from src.models.detection_background import DetectionBackground
 from src.models.detection_event import DetectionEvent
 from src.models.detection_object import DetectionObject
-from src.models.object_class import ObjectClass
 from src.models.gps_data import GPSData
-from src.models.detection_background import DetectionBackground
+from src.models.object_class import ObjectClass
 from src.models.service_response import ServiceResponse, StatusCode
+from src.services.database_service import DatabaseService
 
 
 class PiServerService(QObject):
@@ -279,7 +279,7 @@ class PiServerService(QObject):
         self.send_packet("detection", event.to_dict())
 
     def send_detection_background(self, back: DetectionBackground) -> None:
-        print(f"[PiProxy] Sending Detection background")
+        print("[PiProxy] Sending Detection background")
         self.send_packet("detection_background", back.to_dict())
 
     def send_gps_data(self, gps_data: GPSData) -> None:

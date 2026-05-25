@@ -4,11 +4,9 @@ type: Джерело детекції -> ТІЛЬКИ "RF" або "Sound".
 object_class: Клас об'єкта -> "drone", "bird", "mavic_3" тощо.
 """
 
-from dataclasses import dataclass
 import uuid
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
-import numpy as np
 
 from src.models.source_type import SourceType
 

@@ -1,15 +1,15 @@
 import sys
-import os
 import time
+
 from PyQt6.QtCore import QCoreApplication, QEventLoop, QTimer
 
-from src.services.database_service import DatabaseService
 from src.models.detection_object import DetectionObject
 from src.models.object_class import ObjectClass
+from src.services.database_service import DatabaseService
 
 
 def run_seeding():
-    app = QCoreApplication(sys.argv)
+    QCoreApplication(sys.argv)
     db = DatabaseService()
     loop = QEventLoop()
 
@@ -86,5 +86,4 @@ def run_seeding():
 
 
 if __name__ == "__main__":
-
     run_seeding()

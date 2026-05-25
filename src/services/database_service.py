@@ -1,31 +1,31 @@
 import math
-from typing import List, Any, Optional, Callable
+from typing import Any, Callable, List, Optional
 
-from PyQt6.QtCore import QObject, pyqtSignal, QRunnable, QThreadPool, pyqtSlot
+from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal, pyqtSlot
 from sqlalchemy import (
-    create_engine,
+    JSON,
+    Boolean,
     Column,
+    ForeignKey,
     Integer,
     String,
-    Boolean,
-    JSON,
-    ForeignKey,
+    create_engine,
     func,
 )
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import (
-    sessionmaker,
-    declarative_base,
-    relationship,
-    joinedload,
-    Session,
-)
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.event import listen
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import (
+    Session,
+    declarative_base,
+    joinedload,
+    relationship,
+    sessionmaker,
+)
 
 from src.models.detection_object import DetectionObject
 from src.models.object_class import ObjectClass
-from src.models.service_response import ServiceResponse, StatusCode, DbOperation
+from src.models.service_response import DbOperation, ServiceResponse, StatusCode
 
 DB_CONNECTION_STRING: str = "sqlite:///./sdr_pi.db"
 
@@ -82,7 +82,7 @@ class DatabaseService(QObject):
         listen(self.engine, "connect", self._enable_wal)
         Base.metadata.create_all(self.engine)
         self.Session: sessionmaker[Session] = sessionmaker(bind=self.engine)
-        print(f"[DB] Service started. Mode: WAL enabled.")
+        print("[DB] Service started. Mode: WAL enabled.")
 
     @staticmethod
     def _enable_wal(dbapi_connection, connection_record):
