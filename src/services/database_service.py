@@ -5,7 +5,6 @@ from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal, pyqtSlot
 from sqlalchemy import (
     JSON,
     Boolean,
-    Column,
     ForeignKey,
     Integer,
     String,
@@ -16,9 +15,11 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import (
+    Mapped,
     Session,
     declarative_base,
     joinedload,
+    mapped_column,
     relationship,
     sessionmaker,
 )
@@ -34,21 +35,21 @@ Base: Any = declarative_base()
 
 class ObjectClassEntity(Base):
     __tablename__ = "object_classes"
-    id: int = Column(Integer, primary_key=True, autoincrement=True)
-    name: str = Column(String, unique=True, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     signatures = relationship("Signature", back_populates="object_class_rel")
 
 
 class Signature(Base):
     __tablename__ = "signatures"
-    id: int = Column(Integer, primary_key=True, autoincrement=True)
-    name: str = Column(String, nullable=False)
-    class_id: int = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    class_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("object_classes.id"), nullable=False, index=True
     )
-    is_dangerous: bool = Column(Boolean, default=False)
-    rf_params: Optional[List[str]] = Column(JSON, nullable=True)
-    sound_params: Optional[List[float]] = Column(JSON, nullable=True)
+    is_dangerous: Mapped[bool] = mapped_column(Boolean, default=False)
+    rf_params: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
+    sound_params: Mapped[Optional[List[int]]] = mapped_column(JSON, nullable=True)
     object_class_rel = relationship("ObjectClassEntity", back_populates="signatures")
 
 
@@ -292,8 +293,8 @@ class DatabaseService(QObject):
                 class_id=new_sig.class_id,
                 object_class=target_class_name,
                 is_dangerous=new_sig.is_dangerous,
-                rf_params_hz=new_sig.rf_params,
-                sound_params_hz=new_sig.sound_params,
+                rf_params_hz=new_sig.rf_params or [],
+                sound_params_hz=new_sig.sound_params or [],
             )
 
             resp.status = StatusCode.CREATED

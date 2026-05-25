@@ -9,7 +9,12 @@ from src.services.database_service import DatabaseService
 
 
 def run_seeding():
-    QCoreApplication(sys.argv)
+    app = QCoreApplication(sys.argv)
+
+    if not app:
+        print("Failed to create QCoreApplication instance.")
+        return
+
     db = DatabaseService()
     loop = QEventLoop()
 
