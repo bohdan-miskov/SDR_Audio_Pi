@@ -1,0 +1,38 @@
+# --- НАЛАШТУВАННЯ RUFF (Лінтер та Форматер) ---
+[tool.ruff]
+
+target-version = "py311"
+# Що ігнорувати
+exclude = [
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".git",
+
+]
+
+[tool.ruff.lint]
+# Базові правила:
+# E, W - помилки та попередження стилю
+# F - логічні помилки (невикористані змінні, погані імпорти)
+# I - автоматичне сортування імпортів 
+select = ["E", "F", "W", "I"]
+
+# ВИМИКАЄМО ПЕРЕВІРКУ НА ДОВЖИНУ РЯДКА (E501)
+ignore = ["E501"]
+
+# --- НАЛАШТУВАННЯ MYPY (Типізація) ---
+[tool.mypy]
+python_version = "3.11"
+exclude = [".venv", "venv"]
+
+ignore_missing_imports = true
+
+# --- НАЛАШТУВАННЯ DEPTRY (Залежності) ---
+[tool.deptry]
+extend_exclude = [".venv", "venv"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["RPi.GPIO"]
+
+[tool.deptry.package_module_name_map]
