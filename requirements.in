@@ -6,3 +6,11 @@ numpy
 # scipy
 sqlalchemy
 # RPi.GPIO
+PyYAML
+librosa
+tensorflow-cpu
+soundfile
+pyaudio
+python_speech_features
+pandas
+
