@@ -1,14 +1,14 @@
-"""
+'''
 Модель події детекції.
 type: Джерело детекції -> ТІЛЬКИ "RF" або "Sound".
 object_class: Клас об'єкта -> "drone", "bird", "mavic_3" тощо.
-"""
+'''
 
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from src.models.source_type import SourceType
+from models.source_type import SourceType
 
 
 @dataclass
