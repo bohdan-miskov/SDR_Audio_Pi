@@ -2,8 +2,8 @@
 SDRInterface — головне вікно SDR-монітора.
 Координує ControlPanel та ChartPanel, підписується на таймер оновлення.
 """
-from PyQt5.QtWidgets import QMainWindow, QWidget, QHBoxLayout
-from PyQt5.QtCore import QTimer
+from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout
+from PyQt6.QtCore import QTimer
 
 from gui.panels.control_panel import ControlPanel
 from gui.panels.chart_panel import ChartPanel

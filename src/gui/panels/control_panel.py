@@ -2,12 +2,13 @@
 ControlPanel — ліва панель управління SDR-інтерфейсу.
 Містить: SYSTEM, SCANNER RANGE, HISTOGRAM, NOISE MASK, FREQ, GAIN, LOG.
 """
-from PyQt5.QtWidgets import (
+import time
+from PyQt6.QtWidgets import (
     QFrame, QVBoxLayout, QLabel, QDoubleSpinBox,
     QSlider, QPushButton, QTextEdit, QGridLayout, QGroupBox,
 )
-from PyQt5.QtCore import Qt
-import time
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QTextCursor
 
 
 class ControlPanel(QFrame):
@@ -58,7 +59,9 @@ class ControlPanel(QFrame):
         """Додає рядок у лог з часовою міткою."""
         t = time.strftime("%H:%M:%S")
         self._log_w.append(f"<span style='color:{color}'>[{t}] {text}</span>")
-        self._log_w.moveCursor(self._log_w.textCursor().End)
+        
+        # ВИПРАВЛЕНО ДЛЯ PyQt6: Переміщення курсору в кінець для автоскролу
+        self._log_w.moveCursor(QTextCursor.MoveOperation.End)
 
     def set_scan_btn_scanning(self) -> None:
         """Переводить кнопку сканування в стан СТОП."""
@@ -177,7 +180,7 @@ class ControlPanel(QFrame):
 
         # — GAIN —
         layout.addWidget(QLabel("GAIN", styleSheet="color: #aaa;"))
-        self._gain = QSlider(Qt.Horizontal)
+        self._gain = QSlider(Qt.Orientation.Horizontal)
         self._gain.setRange(0, 80)
         self._gain.setValue(50)
         self._gain.valueChanged.connect(lambda v: self._ctrl.set_gain(v))

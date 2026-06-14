@@ -1,7 +1,7 @@
 """
 HistogramWindow — окреме вікно для відображення гістограми активності.
 """
-from PyQt5.QtWidgets import QDialog, QVBoxLayout
+from PyQt6.QtWidgets import QDialog, QVBoxLayout
 import pyqtgraph as pg
 
 

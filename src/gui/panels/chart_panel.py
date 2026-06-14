@@ -2,8 +2,8 @@
 ChartPanel — правий блок з графіками: Spectrum Analyzer + Waterfall.
 """
 import numpy as np
-from PyQt5.QtWidgets import QVBoxLayout, QWidget
-from PyQt5.QtCore import QRectF, Qt
+from PyQt6.QtWidgets import QVBoxLayout, QWidget
+from PyQt6.QtCore import QRectF, Qt
 import pyqtgraph as pg
 
 from core.config import get_band_profile
@@ -104,7 +104,7 @@ class ChartPanel(QWidget):
 
                 line = pg.InfiniteLine(
                     pos=freq_mhz, angle=90,
-                    pen=pg.mkPen('#444', width=1, style=Qt.DashLine)
+                    pen=pg.mkPen('#444', width=1, style=Qt.PenStyle.DashLine)
                 )
                 text = pg.TextItem(f"{ch_num}", color='#888', anchor=(0.5, 0))
                 text.setPos(freq_mhz, 35)

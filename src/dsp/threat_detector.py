@@ -1,6 +1,6 @@
 """
 ThreatDetector — детекція цільових об'єктів та протоколів.
-Generates PyQt5 signals via callback to avoid Qt dependency in pure DSP logic.
+Generates PyQt6 signals via callback to avoid Qt dependency in pure DSP logic.
 """
 import time
 import numpy as np
@@ -134,8 +134,9 @@ class ThreatDetector:
             )
             if ready and (now - self._last_obj_alert[obj_name] > self.OBJ_REPEAT_INTERVAL):
                 self._last_obj_alert[obj_name] = now
+                freqs_str = ", ".join(f"{f/1e6:.1f}MHz" for f in obj_freqs)
                 self._alert(
-                    f"🚨 ДЕТЕКЦІЯ: {obj_name} (Всі 3 частоти активні!)", "#ff0000"
+                    f"🚨 ДЕТЕКЦІЯ: {obj_name} ({freqs_str})", "#ff0000"
                 )
 
     # ── Private: Protocol detection ───────────────────────────────────────────

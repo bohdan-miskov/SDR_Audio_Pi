@@ -3,9 +3,9 @@ import time
 
 from PyQt6.QtCore import QCoreApplication, QEventLoop, QTimer
 
-from src.models.detection_object import DetectionObject
-from src.models.object_class import ObjectClass
-from src.services.database_service import DatabaseService
+from services.database_service import DatabaseService
+from models.detection_object import DetectionObject
+from models.object_class import ObjectClass
 
 
 def run_seeding():

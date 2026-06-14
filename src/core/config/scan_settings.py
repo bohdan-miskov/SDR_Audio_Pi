@@ -10,22 +10,24 @@ SCAN_RANGES = [
 ]
 
 # Піни Raspberry Pi для керування антенами
-# Порядок ключів = порядок перемикання (ANT_A → ANT_B → ANT_C → BLANK)
+# Порядок ключів = порядок перемикання (ANT_A → ANT_B → ... → BLANK)
 GPIO_PINS = {
     'ANT_A': 17,
     'ANT_B': 27,
     'ANT_C': 22,
     'ANT_D': 23,
     'ANT_E': 24,
+    'ANT_F': 25,  # 6-а антена
 }
 
 # ── Amplitude Blanking (синхронізація антенного циклу) ────────────────────────
 # Кількість активних антен (без BLANK-кроку)
-N_ANTENNAS: int = 5
+N_ANTENNAS: int = 6
 
 # Тривалість одного кроку — скільки мс кожна антена (та BLANK) активна
-# При SAMPLE_RATE=30 MSPS: 1 мс = 30 000 семплів
-ANTENNA_STEP_MS: float = 1.0
+# При SAMPLE_RATE=30 MSPS: 0.2 мс = 6 000 семплів (6.2 циклі у буфері 262144)
+# Попереднє значення 1.0 мс давало cycle=210000 — більше за BUFFER_SIZE і AmpSync завжди вертав None
+ANTENNA_STEP_MS: float = 0.2
 
 # Повний цикл = N_ANTENNAS + 1 (BLANK) = 4 кроки = 4 мс = 120 000 семплів
 # (розраховується автоматично у AmplitudeSyncDetector)

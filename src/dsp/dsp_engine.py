@@ -4,7 +4,7 @@ DSPEngine — оркестратор цифрової обробки сигна�
 та опційний AmplitudeSyncDetector (Amplitude Blanking).
 """
 import numpy as np
-from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal
 
 from dsp.fft_processor import FFTProcessor
 from dsp.channel_analyzer import ChannelAnalyzer
@@ -27,6 +27,9 @@ class DSPEngine(QObject):
 
     # Qt-сигнал для GUI: (повідомлення, колір)
     threat_detected = pyqtSignal(str, str)
+
+    # Qt-сигнал з реальним азимутом: (азимут_deg, confidence, uncertainty_deg, method)
+    bearing_updated = pyqtSignal(float, float, float, str)
 
     def __init__(self):
         super().__init__()
@@ -66,6 +69,16 @@ class DSPEngine(QObject):
     @property
     def detected_power(self) -> float:
         return self._classifier.detected_power
+
+    @property
+    def bearing_uncertainty(self) -> float:
+        """Оцінка похибки азимуту в градусах (з Kalman filter)."""
+        return self._finder.uncertainty
+
+    @property
+    def bearing_method(self) -> str:
+        """Метод який дав останній результат: 'rss', 'tdoa', або 'music'."""
+        return self._finder.last_method
 
     @property
     def sync_enabled(self) -> bool:
@@ -153,10 +166,17 @@ class DSPEngine(QObject):
                 bearing = self._finder.estimate(self._antenna_iq)
                 if bearing is not None:
                     conf = self._finder.confidence
-                    if conf > 0.3:  # повідомляємо тільки при достатньо впевненому результаті
+                    unc  = self._finder.uncertainty
+                    meth = self._finder.last_method
+
+                    # Сигнал для pi_server_service з реальним азимутом
+                    self.bearing_updated.emit(bearing, conf, unc, meth)
+
+                    if conf > 0.3:
                         color = "#00ff88" if conf > 0.6 else "#ffcc00"
                         self.threat_detected.emit(
-                            f"BEARING: {bearing:.1f}deg  conf={conf:.2f}", color
+                            f"BEARING: {bearing:.1f}°  ±{unc:.0f}°  "
+                            f"conf={conf:.2f}  [{meth}]", color
                         )
         else:
             self._antenna_iq = {}
@@ -171,18 +191,24 @@ class DSPEngine(QObject):
         self._classifier.classify(freqs, psd, center_freq, self._fft.mask_enabled)
 
         # 4. Детекція загроз
+        from core.config import RSSI_THRESHOLD
         noise_floor = 0.0 if self._fft.mask_enabled else float(np.percentile(psd, 30))
-        self._detector.analyze(
-            freqs=freqs,
-            psd=psd,
-            noise_floor=noise_floor,
-            center_freq=center_freq,
-            mask_enabled=self._fft.mask_enabled,
-            current_profile=self._channels.current_profile,
-            channel_activity=self._channels.channel_activity,
-            detected_protocol=self._classifier.detected_protocol,
-            detected_bandwidth=self._classifier.detected_bandwidth,
-            detected_power=self._classifier.detected_power,
-        )
+
+        # SNR-фільтр: без реального сигналу — не запускаємо детектор
+        # (запобігає накопиченню persistence від шуму симуляції)
+        max_snr = float(np.max(psd)) - noise_floor
+        if self._fft.mask_enabled or max_snr >= RSSI_THRESHOLD:
+            self._detector.analyze(
+                freqs=freqs,
+                psd=psd,
+                noise_floor=noise_floor,
+                center_freq=center_freq,
+                mask_enabled=self._fft.mask_enabled,
+                current_profile=self._channels.current_profile,
+                channel_activity=self._channels.channel_activity,
+                detected_protocol=self._classifier.detected_protocol,
+                detected_bandwidth=self._classifier.detected_bandwidth,
+                detected_power=self._classifier.detected_power,
+            )
 
         return freqs, psd

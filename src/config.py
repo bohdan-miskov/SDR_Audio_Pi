@@ -4,7 +4,7 @@ config.py — зворотна сумісність.
 Цей файл реекспортує їх, щоб старі імпорти не ламались.
 """
 from core.config import (
-    SAMPLE_RATE, BUFFER_SIZE, GAIN_DEFAULT, RSSI_THRESHOLD,
+    SAMPLE_RATE, BUFFER_SIZE, GAIN_DEFAULT, RSSI_THRESHOLD, DB_OFFSET,
     SCAN_RANGES, GPIO_PINS, N_ANTENNAS, ANTENNA_STEP_MS,
     WIFI_CHANNELS_2_4, WIFI_CHANNELS_5, WIFI_CHANNEL_WIDTH,
     BAND_PROFILES, get_band_profile,
@@ -13,7 +13,7 @@ from core.config import (
 )
 
 __all__ = [
-    "SAMPLE_RATE", "BUFFER_SIZE", "GAIN_DEFAULT", "RSSI_THRESHOLD",
+    "SAMPLE_RATE", "BUFFER_SIZE", "GAIN_DEFAULT", "RSSI_THRESHOLD", "DB_OFFSET",
     "SCAN_RANGES", "GPIO_PINS",
     "WIFI_CHANNELS_2_4", "WIFI_CHANNELS_5", "WIFI_CHANNEL_WIDTH",
     "BAND_PROFILES", "get_band_profile",

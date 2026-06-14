@@ -2,7 +2,7 @@
 core/config — публічний API конфігураційного модуля.
 Реекспортує всі константи та хелпери для зворотної сумісності.
 """
-from .sdr_settings import SAMPLE_RATE, BUFFER_SIZE, GAIN_DEFAULT, RSSI_THRESHOLD
+from .sdr_settings import SAMPLE_RATE, BUFFER_SIZE, GAIN_DEFAULT, RSSI_THRESHOLD, DB_OFFSET
 from .scan_settings import SCAN_RANGES, GPIO_PINS, N_ANTENNAS, ANTENNA_STEP_MS, ARRAY_RADIUS_M
 from .wifi_profiles import (
     WIFI_CHANNELS_2_4, WIFI_CHANNELS_5, WIFI_CHANNEL_WIDTH,
@@ -13,7 +13,7 @@ from .target_objects import TARGET_OBJECTS
 
 __all__ = [
     # sdr_settings
-    "SAMPLE_RATE", "BUFFER_SIZE", "GAIN_DEFAULT", "RSSI_THRESHOLD",
+    "SAMPLE_RATE", "BUFFER_SIZE", "GAIN_DEFAULT", "RSSI_THRESHOLD", "DB_OFFSET",
     # scan_settings
     "SCAN_RANGES", "GPIO_PINS",
     # wifi_profiles

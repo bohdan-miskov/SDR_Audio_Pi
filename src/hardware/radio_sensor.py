@@ -18,12 +18,24 @@ class RadioSensor:
     Обгортка над PlutoSDR (libiio/adi).
     При відсутності бібліотеки або апаратного забезпечення
     автоматично переходить в режим симуляції.
+
+    sim_antenna_mux: якщо True (за замовчуванням), симуляція генерує IQ
+    з реальними BLANK-провалами та фазовими зсувами між антенами,
+    що дозволяє AmplitudeSyncDetector і DirectionFinder працювати без GPIO.
     """
 
-    def __init__(self, uri: str = "ip:192.168.2.1"):
+    def __init__(
+        self,
+        uri: str = "ip:192.168.2.1",
+        sim_antenna_mux: bool = True,
+        sim_azimuth_deg: float = 45.0,
+    ):
         self._uri = uri
         self._sdr = None
-        self._sim = SimulationGenerator()
+        self._sim = SimulationGenerator(
+            antenna_mux=sim_antenna_mux,
+            sim_azimuth_deg=sim_azimuth_deg,
+        )
         self._mode = "INIT"
         self._current_freq: int = 433_000_000
         self._current_gain: int = GAIN_DEFAULT
@@ -56,6 +68,24 @@ class RadioSensor:
     @property
     def uri(self) -> str:
         return self._uri
+
+    @property
+    def sim_azimuth_deg(self) -> float:
+        """Азимут симульованого джерела (для режиму SIMULATION)."""
+        return self._sim.sim_azimuth_deg
+
+    @sim_azimuth_deg.setter
+    def sim_azimuth_deg(self, value: float) -> None:
+        self._sim.sim_azimuth_deg = float(value)
+
+    @property
+    def sim_antenna_mux(self) -> bool:
+        """Вмикач генерації BLANK-провалів у симуляції."""
+        return self._sim.antenna_mux
+
+    @sim_antenna_mux.setter
+    def sim_antenna_mux(self, value: bool) -> None:
+        self._sim.antenna_mux = bool(value)
 
     # ── IRadio interface ─────────────────────────────────────────────────────
 

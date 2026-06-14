@@ -59,6 +59,10 @@ class ScanManager:
 
         if stop_hz <= start_hz:
             self._freq_list = [start_hz]
+        elif (stop_hz - start_hz) < SAMPLE_RATE:
+            # Вузький діапазон — одна точка в центрі (не на start!)
+            center_hz = (start_hz + stop_hz) / 2.0
+            self._freq_list = [center_hz]
         else:
             freq_arr = np.arange(start_hz, stop_hz, SAMPLE_RATE)
             self._freq_list = freq_arr.tolist() if len(freq_arr) > 0 else [start_hz]

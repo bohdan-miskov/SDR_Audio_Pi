@@ -24,9 +24,9 @@ from sqlalchemy.orm import (
     sessionmaker,
 )
 
-from src.models.detection_object import DetectionObject
-from src.models.object_class import ObjectClass
-from src.models.service_response import DbOperation, ServiceResponse, StatusCode
+from models.detection_object import DetectionObject
+from models.object_class import ObjectClass
+from models.service_response import ServiceResponse, StatusCode, DbOperation
 
 DB_CONNECTION_STRING: str = "sqlite:///./sdr_pi.db"
 

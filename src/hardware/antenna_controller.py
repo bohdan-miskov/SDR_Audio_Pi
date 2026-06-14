@@ -37,7 +37,7 @@ class AntennaController:
 
     # Порядок перемикання антен у пеленгаторному циклі (без BLANK — він додається автоматично)
     # 5 антен рівномірно по колу (0°, 72°, 144°, 216°, 288°)
-    ANTENNA_CYCLE: list[str] = ['ANT_A', 'ANT_B', 'ANT_C', 'ANT_D', 'ANT_E']
+    ANTENNA_CYCLE: list[str] = ['ANT_A', 'ANT_B', 'ANT_C', 'ANT_D', 'ANT_E', 'ANT_F']
 
     def __init__(self):
         self._pins: dict[str, int] = GPIO_PINS

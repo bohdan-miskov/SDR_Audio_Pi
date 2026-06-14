@@ -246,9 +246,9 @@ def test_dsp_engine_integration():
     print("ТЕСТ 6: Інтеграція AmplitudeSyncDetector через DSPEngine")
     hr()
 
-    # Примітка: DSPEngine потребує PyQt5 QApplication для pyqtSignal
+    # Примітка: DSPEngine потребує PyQt6 QApplication для pyqtSignal
     try:
-        from PyQt5.QtWidgets import QApplication
+        from PyQt6.QtWidgets import QApplication
         _app = QApplication.instance() or QApplication(sys.argv)
 
         engine = DSPEngine()
@@ -270,7 +270,7 @@ def test_dsp_engine_integration():
         return True
 
     except Exception as e:
-        print(f"  [SKIP] PyQt5 недоступний без дисплею: {e}")
+        print(f"  [SKIP] PyQt6 недоступний без дисплею: {e}")
         print(f"  Результат: SKIP")
         return True   # Не вважаємо помилкою в headless-середовищі
 

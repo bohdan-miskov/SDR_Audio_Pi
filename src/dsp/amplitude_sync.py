@@ -32,9 +32,9 @@ class AmplitudeSyncDetector:
     """
 
     # Частка від step_samples, що вважається «провалом» (поріг нижче медіани)
-    BLANK_DEPTH_FACTOR: float = 0.4   # у BLANK сигнал < 40 % від норми
-    # Частка step_samples для згладжування амплітуди
-    SMOOTH_WINDOW_FACTOR: float = 0.05
+    BLANK_DEPTH_FACTOR: float = 0.15   # BLANK < 15 % від медіани (у симуляції -60 dB ≈ 0.1 %)
+    # Частка step_samples для згладжування амплітуди (мале вікно = чіткі краї BLANK)
+    SMOOTH_WINDOW_FACTOR: float = 0.01
 
     def __init__(self):
         self._step_samples: int = int(SAMPLE_RATE * ANTENNA_STEP_MS / 1000)
@@ -88,6 +88,27 @@ class AmplitudeSyncDetector:
             Словник {'ANT_A': ndarray, 'ANT_B': ndarray, 'ANT_C': ndarray}
             або None — якщо маркери не знайдені (менше 2).
         """
+        # ── Одноразова діагностика (виконується завжди, до будь-яких перевірок) ──
+        if not hasattr(self, '_proc_diag_done'):
+            self._proc_diag_done = True
+            amp = np.abs(iq_samples)
+            n_zeros = int(np.sum(amp < 1e-9))
+            print(
+                f"[AmpSync DIAG] iq_len={len(iq_samples)} "
+                f"step={self._step_samples} cycle={self._cycle_samples} "
+                f"min2={self._cycle_samples * 2}"
+            )
+            print(
+                f"[AmpSync DIAG] amp: min={np.min(amp):.3e} "
+                f"median={np.median(amp):.3e} max={np.max(amp):.3e}"
+            )
+            print(
+                f"[AmpSync DIAG] zero_samples(< 1e-9)={n_zeros} "
+                f"({100 * n_zeros / len(iq_samples):.1f}%) "
+                f"expected~{100 / (self._n_antennas + 1):.1f}%"
+            )
+        # ────────────────────────────────────────────────────────────────────────
+
         if len(iq_samples) < self._cycle_samples * 2:
             return None   # Замало даних для хоч одного повного циклу
 
@@ -99,6 +120,7 @@ class AmplitudeSyncDetector:
             return None
 
         return self._slice_antennas(iq_samples, markers)
+
 
     def detect_only(self, iq_samples: np.ndarray) -> list[int]:
         """
@@ -117,33 +139,64 @@ class AmplitudeSyncDetector:
 
         Алгоритм:
           1. Обчислюємо обгортку (envelope) = |IQ|
-          2. Згладжуємо uniform_filter1d для прибирання шуму
-          3. Визначаємо поріг: медіана * BLANK_DEPTH_FACTOR
-          4. Інвертуємо і шукаємо піки (= мінімуми вихідного сигналу)
-             з мінімальною відстанню 80 % від cycle_samples
+          2. Легке згладжування (мале вікно, щоб не розмивати краї BLANK)
+          3. Поріг: медіана * BLANK_DEPTH_FACTOR
+          4. Знаходимо зв'язні зони нижче порогу (BLANK-кандидати)
+          5. Фільтруємо за мінімальною відстанню між маркерами (80% cycle)
+             та мінімальною шириною зони (20% step)
         """
         amplitude = np.abs(iq_samples)
         smoothed = uniform_filter1d(amplitude.astype(float), size=self._smooth_win)
 
         median_amp = float(np.median(smoothed))
+
+        # ── ДІАГНОСТИКА (перший виклик) ───────────────────────────────────────
+        if not hasattr(self, '_diag_done'):
+            self._diag_done = True
+            amp_min  = float(np.min(smoothed))
+            amp_max  = float(np.max(smoothed))
+            amp_p1   = float(np.percentile(smoothed, 1))
+            amp_p5   = float(np.percentile(smoothed, 5))
+            n_below_15 = int(np.sum(smoothed < median_amp * 0.15))
+            n_below_40 = int(np.sum(smoothed < median_amp * 0.40))
+            print(f"[AmpSync DIAG] buf_len={len(iq_samples)} smooth_win={self._smooth_win}")
+            print(f"[AmpSync DIAG] amp  min={amp_min:.3e}  p1={amp_p1:.3e}  p5={amp_p5:.3e}")
+            print(f"[AmpSync DIAG] amp  median={median_amp:.3e}  max={amp_max:.3e}")
+            print(f"[AmpSync DIAG] below 15%: {n_below_15} samp  below 40%: {n_below_40} samp")
+            print(f"[AmpSync DIAG] step={self._step_samples}  cycle={self._cycle_samples}")
+        # ──────────────────────────────────────────────────────────────────────
+
         if median_amp < 1e-10:
             return []   # Немає сигналу взагалі
 
         blank_threshold = median_amp * self.BLANK_DEPTH_FACTOR
 
-        # Шукаємо мінімуми через інвертований сигнал
-        inverted = -smoothed
-        min_distance = int(self._cycle_samples * 0.8)
+        # Бінарна маска: True там де амплітуда нижче порогу (= BLANK-зони)
+        below = smoothed < blank_threshold
 
-        # height: піки повинні бути вищими за -blank_threshold (тобто нижчими за blank_threshold)
-        peaks, props = find_peaks(
-            inverted,
-            height=-blank_threshold,
-            distance=min_distance,
-            prominence=median_amp * 0.3,
-        )
+        # Знаходимо початки та кінці кожної BLANK-зони
+        diff = np.diff(below.astype(np.int8), prepend=0, append=0)
+        starts = np.where(diff == 1)[0]
+        ends   = np.where(diff == -1)[0]
 
-        return peaks.tolist()
+        if len(starts) == 0:
+            return []
+
+        min_blank_width = int(self._step_samples * 0.20)   # >= 20% кроку
+        min_distance    = int(self._cycle_samples * 0.80)  # >= 80% циклу між маркерами
+
+        markers: list[int] = []
+        for s, e in zip(starts, ends):
+            width = e - s
+            if width < min_blank_width:
+                continue   # Занадто вузька зона — шум
+            center = int((s + e) // 2)
+            # Перевіряємо мінімальну відстань від попереднього маркера
+            if markers and (center - markers[-1]) < min_distance:
+                continue
+            markers.append(center)
+
+        return markers
 
     # ── Private: Antenna slicing ──────────────────────────────────────────────
 
