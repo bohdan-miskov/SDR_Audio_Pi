@@ -1,4 +1,3 @@
-PyQt6
 numpy
 pyqtgraph
 pyadi-iio
@@ -8,9 +7,10 @@ sqlalchemy
 # RPi.GPIO
 PyYAML
 librosa
-tensorflow-cpu
+tensorflow
 soundfile
 pyaudio
 python_speech_features
 pandas
-
+sounddevice
+scikit-learn

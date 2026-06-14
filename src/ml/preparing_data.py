@@ -2,63 +2,58 @@ import numpy as np
 import librosa
 from scipy.io import wavfile
 from tqdm import tqdm
-import pandas as pd
 from pathlib import Path
-
 
 TARGET_RATE = 16000
 THRESHOLD = 0.005
 
-
 def envelope(y, rate, threshold):
     y_abs = np.abs(y)
-
     window_len = int(rate / 10)
     window = np.ones(window_len) / window_len
-
     y_mean = np.convolve(y_abs, window, mode='same')
-
     mask = y_mean > threshold
     return mask
 
-
+# Вказуємо шлях прямо до твоєї папки 'Dataset'
+# Вказуємо шлях прямо до твоєї папки 'Dataset'
+# Піднімаємось на 2 рівні вгору від папки src/ml до кореня проєкту
 current_dir = Path(__file__).resolve().parent
 project_root = current_dir.parent.parent
+dataset_path = project_root / 'Dataset'
 
-base_data_path = project_root / 'Dataset' / 'Audio'
-clean_data_path = project_root / 'Dataset' / 'Clean_Audio'
-csv_path = current_dir / 'drone_dataset.csv'
+print(f"Починаю перевірку файлів у папці: {dataset_path}")
 
-df = pd.read_csv(csv_path)
+# Шукаємо ВСІ wav файли у підпапках (drone та background noise)
+wav_files = list(dataset_path.rglob('*.wav'))
 
-classes = df['label'].unique()
+if not wav_files:
+    print("❌ Помилка: Не знайдено жодного .wav файлу. Перевір, чи лежать файли саме в папках drone та background noise.")
+else:
+    for file_path in tqdm(wav_files, desc="Обробка аудіо"):
+        try:
+            # Завантажуємо файл, примусово робимо 16000 Гц і Моно
+            signal, rate = librosa.load(str(file_path), sr=TARGET_RATE, mono=True)
 
-for c in classes:
-    (clean_data_path / c).mkdir(parents=True, exist_ok=True)
+            # ВАЖЛИВО: Застосовуємо видалення тиші ТІЛЬКИ для дронів!
+            if file_path.parent.name == 'drone':
+                mask = envelope(signal, rate, THRESHOLD)
+                clean_signal = signal[mask]
+            else:
+                # Для фонового шуму (background noise) нічого не відрізаємо
+                clean_signal = signal 
 
-print("Починаю очищення та збереження файлів...")
+            # Якщо після очищення хоч щось залишилося
+            if len(clean_signal) > 0:
+                # Переводимо у правильний формат int16
+                clean_signal_int16 = np.int16(np.clip(clean_signal * 32767, -32768, 32767))
+                
+                # Перезаписуємо той самий файл ідеальним стандартизованим звуком
+                wavfile.write(str(file_path), rate, clean_signal_int16)
+            else:
+                print(f"\nПопередження: Файл {file_path.name} виявився абсолютно порожнім після обрізки тиші.")
 
-for _, row in tqdm(df.iterrows(), total=len(df)):
-    label = row['label']
-    f = row['fname']
+        except Exception as e:
+            print(f"\nПомилка з файлом {file_path.name}: {e}")
 
-    src_path = base_data_path / label / f
-    dst_path = clean_data_path / label / f
-
-    if not src_path.exists():
-        continue
-
-    try:
-        signal, rate = librosa.load(str(src_path), sr=TARGET_RATE)
-
-        mask = envelope(signal, rate, THRESHOLD)
-        clean_signal = signal[mask]
-
-        if len(clean_signal) > 0:
-            clean_signal_int16 = np.int16(clean_signal * 32767)
-            wavfile.write(str(dst_path), rate, clean_signal_int16)
-
-    except Exception as e:
-        print(f"Помилка з файлом {f}: {e}")
-
-print(f"Готово! Очищені файли збережено в {clean_data_path}")
+    print(f"\n🎉 Готово! Всі {len(wav_files)} файлів приведено до стандарту: 16000 Гц, int16.")

@@ -1,6 +1,7 @@
 import pickle
 import numpy as np
 import pandas as pd
+import logging
 from pathlib import Path
 from scipy.io import wavfile
 from tqdm import tqdm
@@ -11,18 +12,23 @@ from keras.utils import to_categorical
 from sklearn.utils.class_weight import compute_class_weight
 from keras.callbacks import ModelCheckpoint
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - [%(levelname)s] - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger("AudioTrainer")
+
 current_dir = Path(__file__).resolve().parent
 project_root = current_dir.parent.parent
 
 models_dir = current_dir.parent / 'models'
 models_dir.mkdir(parents=True, exist_ok=True)
 
-clean_data_path = project_root / 'Dataset' / 'Clean_Audio'
-csv_path = current_dir / 'drone_dataset.csv'
-
+clean_data_path = project_root / 'dataset' 
 
 class Config:
-    def __init__(self, mode='conv', nfilt=26, nfeat=13, nfft=512, rate=16000):
+    def __init__(self, mode='convn', nfilt=26, nfeat=13, nfft=8192, rate=16000):
         self.mode = mode
         self.nfilt = nfilt
         self.nfeat = nfeat
@@ -34,9 +40,7 @@ class Config:
         self.min = float('inf')
         self.max = -float('inf')
 
-
-config = Config(mode='conv')
-
+config = Config(mode='convn')
 
 def get_conv_model(input_shape, num_classes):
     model = Sequential([
@@ -54,22 +58,22 @@ def get_conv_model(input_shape, num_classes):
     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 
-
 def build_rand_feat(df, classes, class_dist):
     if config.p_path.exists():
-        print("Знайдено старий кеш. Видаляю його автоматично для оновлення даних...")
+        logger.info("Знайдено старий кеш ознак. Видаляю його для оновлення даних...")
         try:
             config.p_path.unlink()
         except Exception as e:
-            print(f"Не вдалося видалити кеш: {e}. Спробуй видалити {config.p_path.name} вручну!")
+            logger.warning(f"Не вдалося автоматично видалити кеш: {e}. Спробуй видалити {config.p_path.name} вручну.")
 
     X, y = [], []
+    target_shape = None
     prob_dist = class_dist / class_dist.sum()
     n_samples = int((df['length'].sum() / 0.1) * 2)
 
-    print(f"Генеруємо {n_samples} семплів (витягуємо MFCC)...")
+    logger.info(f"Генеруємо {n_samples} семплів (витягуємо MFCC спектрограми)...")
 
-    for _ in tqdm(range(n_samples)):
+    for _ in tqdm(range(n_samples), desc="Обробка аудіо"):
         rand_class = np.random.choice(class_dist.index, p=prob_dist)
 
         available_files = df[df.label == rand_class]['fname'].values
@@ -82,12 +86,14 @@ def build_rand_feat(df, classes, class_dist):
         try:
             rate, wav = wavfile.read(file_path)
 
+            if len(wav.shape) > 1:
+                wav = np.mean(wav, axis=1)
+
             if wav.shape[0] <= config.step:
                 continue
 
             rand_index = np.random.randint(0, wav.shape[0] - config.step)
-            sample = wav[rand_index:rand_index + config.step].astype(
-                np.float32)
+            sample = wav[rand_index:rand_index + config.step].astype(np.float32)
 
             if np.random.rand() > 0.5:
                 noise_amp = 0.05 * np.random.uniform(0, 1) * np.amax(np.abs(sample) + 1e-6)
@@ -95,59 +101,81 @@ def build_rand_feat(df, classes, class_dist):
 
             X_sample = mfcc(sample, rate, numcep=config.nfeat, nfilt=config.nfilt, nfft=config.nfft)
 
+            if target_shape is None:
+                target_shape = X_sample.shape
+
+            if X_sample.shape != target_shape:
+                if X_sample.shape[0] > target_shape[0]:
+                    X_sample = X_sample[:target_shape[0], :]
+                else:
+                    pad_width = target_shape[0] - X_sample.shape[0]
+                    X_sample = np.pad(X_sample, ((0, pad_width), (0, 0)), mode='constant')
+
+            X.append(X_sample)
+            y.append(classes.index(rand_class))
+
         except Exception as e:
+            logger.debug(f"Помилка обробки файлу {file}: {e}")
             continue
 
     if len(X) == 0:
-        raise ValueError("Не вдалося згенерувати жодного семпла! Перевірте аудіофайли.")
+        logger.error("Не вдалося згенерувати жодного семпла! Перевірте наявність аудіофайлів.")
+        raise ValueError("Порожній датасет.")
 
     X, y = np.array(X), np.array(y)
+    config.min = np.min(X)
+    config.max = np.max(X)
     X = (X - config.min) / (config.max - config.min)
 
-    if config.mode == 'conv':
+    if config.mode.startswith('conv'):
         X = X.reshape(X.shape[0], X.shape[1], X.shape[2], 1)
 
     y = to_categorical(y, num_classes=len(classes))
 
-    print(f"Зберігаємо свіжий кеш ознак у {config.p_path.name}...")
+    logger.info(f"Зберігаємо свіжий кеш ознак у {config.p_path.name}...")
     with open(config.p_path, 'wb') as f:
         pickle.dump((X, y, config), f, protocol=2)
 
     return (X, y, config)
 
-
 def main():
-    print("Читаємо дані...")
-    df = pd.read_csv(csv_path)
+    logger.info("Скануємо папки з аудіофайлами...")
+    
+    data = []
+    classes = []
+    
+    if not clean_data_path.exists():
+        logger.error(f"Папку {clean_data_path} не знайдено! Створіть 'dataset/Clean_Audio' в корені проєкту.")
+        return
+
+    for class_dir in clean_data_path.iterdir():
+        if class_dir.is_dir():
+            class_name = class_dir.name
+            classes.append(class_name)
+            
+            for wav_file in class_dir.glob('*.wav'):
+                try:
+                    rate, signal = wavfile.read(wav_file)
+                    length = signal.shape[0] / rate
+                    data.append({'fname': wav_file.name, 'label': class_name, 'length': length})
+                except Exception as e:
+                    logger.warning(f"Не вдалося прочитати пошкоджений файл {wav_file.name}: {e}")
+    
+    if not data:
+        logger.error("Не знайдено жодного .wav файлу у папках. Завантажте дані для тренування.")
+        return
+
+    df = pd.DataFrame(data)
     df.set_index('fname', inplace=True)
+    
+    logger.info(f"Знайдено {len(df)} валідних файлів. Виявлені класи: {classes}")
 
-    if 'length' not in df.columns:
-        df['length'] = 0.0
-
-    print("Рахуємо реальну довжину очищених файлів...")
-    files_to_drop = []
-
-    for f in tqdm(list(df.index)):
-        label = df.at[f, 'label']
-        file_path = clean_data_path / label / f
-
-        try:
-            rate, signal = wavfile.read(file_path)
-            df.at[f, 'length'] = signal.shape[0] / rate
-        except (FileNotFoundError, ValueError):
-            files_to_drop.append(f)
-
-    if files_to_drop:
-        print(f"Видалено {len(files_to_drop)} недоступних або пошкоджених файлів з таблиці.")
-        df.drop(files_to_drop, inplace=True)
-
-    classes = list(np.unique(df.label))
     class_dist = df.groupby(['label'])['length'].mean()
     df.reset_index(inplace=True)
 
     X, y, current_config = build_rand_feat(df, classes, class_dist)
 
-    print("Балансуємо класи та збираємо модель...")
+    logger.info("Балансуємо ваги класів та компілюємо архітектуру моделі...")
     y_flat = np.argmax(y, axis=1)
     class_weights = compute_class_weight('balanced', classes=np.unique(y_flat), y=y_flat)
     class_weights_dict = dict(enumerate(class_weights))
@@ -163,7 +191,7 @@ def main():
         save_best_only=True
     )
 
-    print("Починаємо тренування (10 епох)...")
+    logger.info("Запуск процесу тренування (10 епох)...")
     model.fit(
         X, y,
         epochs=10,
@@ -173,8 +201,7 @@ def main():
         validation_split=0.1,
         callbacks=[checkpoint]
     )
-    print(f"Тренування завершено! Найкращу модель збережено як {current_config.model_path.name}")
-
+    logger.info(f"Тренування успішно завершено! Найкращу модель збережено як {current_config.model_path.name}")
 
 if __name__ == '__main__':
     main()

@@ -2,7 +2,7 @@
 ScanManager — управління списком частот для сканування.
 """
 import numpy as np
-from core.config import SCAN_RANGES, SAMPLE_RATE
+from src.core.config import SCAN_RANGES, SAMPLE_RATE
 
 
 class ScanManager:
