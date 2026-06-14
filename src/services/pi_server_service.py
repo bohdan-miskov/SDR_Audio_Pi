@@ -1,5 +1,7 @@
 import json
 from datetime import datetime
+import queue
+import threading
 from typing import Optional, Dict, Any, List
 
 from PyQt6.QtCore import QObject, pyqtSlot, QByteArray
@@ -131,12 +133,10 @@ class PiServerService(QObject):
             pass
 
         elif action == "start_sound_stream":
-            # TODO: Start Audio process
-            # self.send_sound_stream_data({...})
-            pass
-
+            self.start_audio_scanner()
+            
         elif action == "stop_sound_stream":
-            pass
+            self.stop_audio_scanner()
 
         elif action == "start_alarm":
             relays = data.get("relays", [])
@@ -163,6 +163,34 @@ class PiServerService(QObject):
         else:
             print(f"[PiProxy] Unknown hardware command: {action}")
 
+
+    def start_audio_scanner(self):
+        if not getattr(self, 'scan_running', False):
+            print("[PiProxy] Запуск акустичного сканера...")
+            self.scan_running = True
+            self.detection_queue = queue.Queue()
+            
+            # Запуск обробки звуку в окремому потоці
+            self.scan_thread = threading.Thread(
+                target=self.run_scanner, 
+                args=(self.detection_queue,), 
+                daemon=True
+            )
+            self.scan_thread.start()
+            
+            # Запуск монітора черги
+            threading.Thread(target=self._monitor_scanner_queue, daemon=True).start()
+            self.send_packet("status", {"message": "Sound scanner started"})
+        else:
+            self.send_packet("status", {"message": "Scanner already running"})
+
+    # Метод 2: Зупинка акустичного сканера
+    def stop_audio_scanner(self):
+        self.scan_running = False
+        print("[PiProxy] Акустичний сканер зупинено.")
+        self.send_packet("status", {"message": "Scanner stopped"})
+
+    
     def _handle_db_command(self, action: str, data: Dict[str, Any]) -> None:
         """Обробка CRUD операцій та запитів до бази даних."""
 
