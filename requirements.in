@@ -1,8 +1,16 @@
 PyQt6
 numpy
-# pyqtgraph
-# pyadi-iio
-# matplotlib
-# scipy
+pyqtgraph
+pyadi-iio
+matplotlib
+scipy
 sqlalchemy
-# RPi.GPIO
+#RPi.GPIO       # Виправляє імпорт 'adi' (Analog Devices IIO) для роботи з PlutoSDR
+sounddevice
+soundfile
+
+
+
+
+# Дані та ML
+#pandas
