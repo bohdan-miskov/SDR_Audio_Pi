@@ -30,7 +30,7 @@ jobs:
       # --- ЖОРСТКІ ПЕРЕВІРКИ (Блокують злиття коду) ---
 
       - name: Check dependencies with Deptry
-        run: deptry .
+        run: deptry src
 
       - name: Ruff - Hard Errors Only
         run: ruff check . --select E9,F821 --output-format=github
